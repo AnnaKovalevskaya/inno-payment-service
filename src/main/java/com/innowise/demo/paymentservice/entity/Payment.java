@@ -16,5 +16,5 @@ public class Payment {
     private String userId;
     private String status;
     private LocalDateTime timestamp;
-    private BigDecimal paymentAmount;
+    private double paymentAmount;
 }
