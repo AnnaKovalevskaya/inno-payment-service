@@ -3,7 +3,7 @@ package com.innowise.demo.paymentservice.controller;
 import com.innowise.demo.paymentservice.dto.PaymentDto;
 import com.innowise.demo.paymentservice.service.PaymentService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,10 +12,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/payments")
+@RequiredArgsConstructor
 public class PaymentController {
 
-    @Autowired
-    private PaymentService paymentService;
+    private final PaymentService paymentService;
 
     @GetMapping
     public List<PaymentDto> getAllPayments() {
@@ -28,12 +28,12 @@ public class PaymentController {
     }
 
     @GetMapping("/order/{orderId}")
-    public List<PaymentDto> getPaymentsByOrderId(@PathVariable String orderId) {
+    public List<PaymentDto> getPaymentsByOrderId(@PathVariable Long orderId) {
         return paymentService.getPaymentsByOrderId(orderId);
     }
 
     @GetMapping("/user/{userId}")
-    public List<PaymentDto> getPaymentsByUserId(@PathVariable String userId) {
+    public List<PaymentDto> getPaymentsByUserId(@PathVariable Long userId) {
         return paymentService.getPaymentsByUserId(userId);
     }
 

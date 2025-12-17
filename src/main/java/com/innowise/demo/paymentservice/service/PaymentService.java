@@ -1,45 +1,112 @@
 package com.innowise.demo.paymentservice.service;
 
+import com.innowise.demo.paymentservice.dto.PaymentEvent;
 import com.innowise.demo.paymentservice.entity.Payment;
 import com.innowise.demo.paymentservice.repository.PaymentRepository;
 import com.innowise.demo.paymentservice.dto.PaymentDto;
+import com.innowise.demo.paymentservice.kafka.PaymentKafkaProducer;
 import com.innowise.demo.paymentservice.mapper.PaymentMapper;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class PaymentService {
 
     private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
+    private static final Random RANDOM = new Random();
 
-    @Autowired
-    private PaymentRepository paymentRepository;
-
-    @Autowired
-    private PaymentMapper paymentMapper;
-
-    @Autowired
-    private MongoTemplate mongoTemplate;
+    private final PaymentRepository paymentRepository;
+    private final PaymentMapper paymentMapper;
+    private final MongoTemplate mongoTemplate;
+    private final PaymentKafkaProducer paymentKafkaProducer;
 
     private final WebClient webClient = WebClient.create();
 
     public PaymentDto createPayment(PaymentDto paymentDto) {
-        Payment payment = paymentMapper.toEntity(paymentDto);
-        String status = generateStatusFromApi();
-        payment.setStatus(status);
+        logger.info("Creating payment for orderId: {}", paymentDto.getOrderId());
+
+        Payment payment = new Payment();
+        payment.setOrderId(paymentDto.getOrderId());
+        payment.setUserId(paymentDto.getUserId());
+        payment.setStatus("PENDING");
+        payment.setTimestamp(paymentDto.getTimestamp() != null ? paymentDto.getTimestamp() : LocalDateTime.now());
+        payment.setPaymentAmount(paymentDto.getPaymentAmount());
+
         Payment savedPayment = paymentRepository.save(payment);
-        return paymentMapper.toDto(savedPayment);
+        logger.info("Payment saved with ID: {}", savedPayment.getId());
+
+        CompletableFuture.runAsync(() -> {
+            processPaymentAsync(savedPayment.getId());
+        });
+
+        PaymentDto result = new PaymentDto();
+        result.setId(savedPayment.getId());
+        result.setOrderId(savedPayment.getOrderId());
+        result.setUserId(savedPayment.getUserId());
+        result.setStatus(savedPayment.getStatus());
+        result.setTimestamp(savedPayment.getTimestamp());
+        result.setPaymentAmount(savedPayment.getPaymentAmount());
+
+        return result;
+    }
+
+    private void processPaymentAsync(String paymentId) {
+        logger.info("Processing payment asynchronously: {}", paymentId);
+
+        try {
+            int delaySeconds = 3 + RANDOM.nextInt(3);
+            logger.info("Simulating payment processing for {} seconds...", delaySeconds);
+            Thread.sleep(delaySeconds * 1000L);
+
+            String finalStatus = generateRandomPaymentStatus();
+            logger.info("Generated status for payment {}: {}", paymentId, finalStatus);
+
+            Payment payment = paymentRepository.findById(paymentId)
+                    .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+
+            payment.setStatus(finalStatus);
+            Payment updatedPayment = paymentRepository.save(payment);
+
+            PaymentEvent paymentEvent = new PaymentEvent();
+            paymentEvent.setPaymentId(updatedPayment.getId());
+            paymentEvent.setOrderId(updatedPayment.getOrderId().toString());
+            paymentEvent.setStatus(updatedPayment.getStatus());
+            paymentEvent.setTimestamp(updatedPayment.getTimestamp());
+
+            paymentKafkaProducer.sendPaymentEvent(paymentEvent);
+
+            logger.info("Payment {} processed with status: {}", paymentId, finalStatus);
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Payment processing interrupted for {}", paymentId, e);
+        } catch (Exception e) {
+            logger.error("Error processing payment {}", paymentId, e);
+        }
+    }
+
+    private String generateRandomPaymentStatus() {
+        int randomNumber = RANDOM.nextInt(100);
+
+        if (randomNumber < 70) {
+            return "SUCCESS";
+        } else {
+            return "FAILED";
+        }
     }
 
     public List<PaymentDto> getAllPayments() {
@@ -48,13 +115,13 @@ public class PaymentService {
                 .collect(Collectors.toList());
     }
 
-    public List<PaymentDto> getPaymentsByOrderId(String orderId) {
+    public List<PaymentDto> getPaymentsByOrderId(Long orderId) {
         return paymentRepository.findByOrderId(orderId).stream()
                 .map(paymentMapper::toDto)
                 .collect(Collectors.toList());
     }
 
-    public List<PaymentDto> getPaymentsByUserId(String userId) {
+    public List<PaymentDto> getPaymentsByUserId(Long userId) {
         return paymentRepository.findByUserId(userId).stream()
                 .map(paymentMapper::toDto)
                 .collect(Collectors.toList());
@@ -81,22 +148,6 @@ public class PaymentService {
         logger.info("Total calculated: {}", total);
 
         return total;
-    }
-
-    private String generateStatusFromApi() {
-        try {
-            String response = webClient.get()
-                    .uri("https://www.random.org/integers/?num=1&min=1&max=100&col=1&base=10&format=plain&rnd=new")
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-            int randomNumber = Integer.parseInt(response.trim());
-            logger.info("Generated random number: {}", randomNumber);
-            return (randomNumber % 2 == 0) ? "SUCCESS" : "FAILED";
-        } catch (Exception e) {
-            logger.error("Error calling external API, defaulting to FAILED", e);
-            return "FAILED";
-        }
     }
 
     public static class TotalResult {

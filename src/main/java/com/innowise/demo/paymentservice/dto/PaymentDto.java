@@ -1,23 +1,19 @@
 package com.innowise.demo.paymentservice.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
-import java.time.LocalDateTime;
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Data
 public class PaymentDto {
     private String id;
 
-    @NotBlank(message = "Order ID cannot be blank")
-    @Size(max = 50, message = "Order ID must be less than 50 characters")
-    private String orderId;
+    @NotNull(message = "Order ID cannot be null")
+    private Long orderId;
 
-    @NotBlank(message = "User ID cannot be blank")
-    @Size(max = 50, message = "User ID must be less than 50 characters")
-    private String userId;
+    @NotNull(message = "User ID cannot be null")
+    private Long userId;
 
     private String status;
 

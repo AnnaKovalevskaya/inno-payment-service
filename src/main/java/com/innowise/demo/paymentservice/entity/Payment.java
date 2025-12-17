@@ -1,8 +1,12 @@
 package com.innowise.demo.paymentservice.entity;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
 import java.time.LocalDateTime;
 
 @Document(collection = "payments")
@@ -10,9 +14,21 @@ import java.time.LocalDateTime;
 public class Payment {
     @Id
     private String id;
-    private String orderId;
-    private String userId;
+
+    @Field("orderId")
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long orderId;
+
+    @Field("userId")
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long userId;
+
+    @Field("status")
     private String status;
+
+    @Field("timestamp")
     private LocalDateTime timestamp;
-    private double paymentAmount;
+
+    @Field("paymentAmount")
+    private Double paymentAmount;
 }
