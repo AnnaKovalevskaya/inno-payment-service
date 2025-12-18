@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:mongodb="http://www.liquibase.org/xml/ns/mongodb"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd
+        http://www.liquibase.org/xml/ns/mongodb
+        http://www.liquibase.org/xml/ns/mongodb/liquibase-mongodb-4.20.xsd">
+
+    <changeSet id="create-payments-collection" author="your_name">
+        <mongodb:createCollection collectionName="payments"/>
+        <mongodb:createIndex collectionName="payments" indexName="idx_payments_orderId">
+            <mongodb:keys>
+                <mongodb:key name="orderId" order="1"/>
+            </mongodb:keys>
+        </mongodb:createIndex>
+        <mongodb:createIndex collectionName="payments" indexName="idx_payments_userId">
+            <mongodb:keys>
+                <mongodb:key name="userId" order="1"/>
+            </mongodb:keys>
+        </mongodb:createIndex>
+        <mongodb:createIndex collectionName="payments" indexName="idx_payments_status">
+            <mongodb:keys>
+                <mongodb:key name="status" order="1"/>
+            </mongodb:keys>
+        </mongodb:createIndex>
+    </changeSet>
+</databaseChangeLog>

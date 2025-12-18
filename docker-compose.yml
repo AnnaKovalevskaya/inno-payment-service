@@ -1,0 +1,70 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: payment-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    ports:
+      - "${HOST_MONGODB_PORT}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - payment-network
+      - order-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: payment-kafka
+    environment:
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME}
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}
+    ports:
+      - "${HOST_KAFKA_PORT}:9092"
+      - "${HOST_KAFKA_EXTERNAL_PORT}:29092"
+    networks:
+      - payment-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: payment-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
+    ports:
+      - "${HOST_ZOOKEEPER_PORT}:2181"
+    networks:
+      - payment-network
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payment-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+      SERVER_PORT: ${SERVER_PORT}
+    ports:
+      - "${HOST_PAYMENT_SERVICE_PORT}:8084"
+    depends_on:
+      - mongodb
+      - kafka
+      - zookeeper
+    networks:
+      - payment-network
+
+networks:
+  payment-network:
+    driver: bridge
+  order-network:
+    external: true
+    name: ${ORDER_NETWORK_NAME}
+
+volumes:
+  mongodb_data:
