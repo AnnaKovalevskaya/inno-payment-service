@@ -17,12 +17,12 @@ import static org.testcontainers.containers.wait.strategy.Wait.forListeningPort;
 @ActiveProfiles("test")
 public abstract class AbstractIntegrationTest {
 
-    static final MongoDBContainer mongoDBContainer = new MongoDBContainer(
+    public static final MongoDBContainer mongoDBContainer = new MongoDBContainer(
             DockerImageName.parse("mongo:6.0")
     ).withExposedPorts(27017)
      .waitingFor(forListeningPort());
 
-    static final KafkaContainer kafkaContainer = new KafkaContainer(
+    public static final KafkaContainer kafkaContainer = new KafkaContainer(
             DockerImageName.parse("confluentinc/cp-kafka:7.4.0")
     );
 
