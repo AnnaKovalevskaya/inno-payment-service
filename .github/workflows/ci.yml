@@ -1,5 +1,11 @@
 name: Payment Service CI
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  packages: write
+
 on:
   push:
     branches: [ main, PAY-7 ]
@@ -42,6 +48,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
 
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -83,7 +94,7 @@ jobs:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
     needs: build
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -127,7 +138,13 @@ jobs:
   docker-image:
     name: Create Docker Image
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/PAY-7')
     needs: [test, code-analysis]
+
+    permissions:
+      contents: read
+      checks: write
+      packages: write
 
     steps:
       - name: Checkout code
