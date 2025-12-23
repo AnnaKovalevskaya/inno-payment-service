@@ -1,7 +1,9 @@
 services:
+
   mongodb:
     image: mongo:6.0
     container_name: payment-mongodb
+    restart: unless-stopped
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     ports:
@@ -11,10 +13,14 @@ services:
     networks:
       - payment-network
       - order-network
+      - app-network
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: payment-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
     environment:
       KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
       KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
@@ -32,6 +38,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: payment-zookeeper
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
       ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
@@ -45,6 +52,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: payment-service
+    restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI}
@@ -58,6 +66,89 @@ services:
       - zookeeper
     networks:
       - payment-network
+      - app-network
+
+  api-gateway:
+    build: .
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
+      - SPRING_REDIS_HOST=${SPRING_REDIS_HOST:-redis}
+      - SPRING_REDIS_PORT=${SPRING_REDIS_PORT:-6379}
+      - SERVICES_AUTH_SERVICE_URL=${SERVICES_AUTH_SERVICE_URL:-http://auth-service:8080}
+      - SERVICES_USER_SERVICE_URL=${SERVICES_USER_SERVICE_URL:-http://user-service:8080}
+      - JWT_SECRET=${JWT_SECRET:-mySecretKeyForJWTGenerationAndValidationInApiGatewayService2024}
+      - LOGGING_LEVEL_COM_INNOWISE_DEMO_APIGATEWAY=${LOGGING_LEVEL_COM_INNOWISE_DEMO_APIGATEWAY:-INFO}
+    depends_on:
+      - redis
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:${REDIS_PORT:-6379}"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  auth-service:
+    image: busybox
+    container_name: auth-service
+    ports:
+      - "${AUTH_SERVICE_PORT:-8082}:8080"
+    command: >
+      sh -c "
+      echo 'Mock Auth Service - Ready on port 8080' &&
+      while true; do sleep 3600; done
+      "
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  user-service:
+    image: busybox
+    container_name: user-service
+    ports:
+      - "${USER_SERVICE_PORT:-8083}:8080"
+    command: >
+      sh -c "
+      echo 'Mock User Service - Ready on port 8080' &&
+      while true; do sleep 3600; done
+      "
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth-db
+    environment:
+      - POSTGRES_DB=${AUTH_DB_NAME:-authdb}
+      - POSTGRES_USER=${AUTH_DB_USER:-auth_user}
+      - POSTGRES_PASSWORD=${AUTH_DB_PASSWORD:-auth_password}
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    ports:
+      - "${AUTH_DB_PORT:-5432}:5432"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  user-db:
+    image: postgres:15-alpine
+    container_name: user-db
+    environment:
+      - POSTGRES_DB=${USER_DB_NAME:-userdb}
+      - POSTGRES_USER=${USER_DB_USER:-user_user}
+      - POSTGRES_PASSWORD=${USER_DB_PASSWORD:-user_password}
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    ports:
+      - "${USER_DB_PORT:-5433}:5432"
+    networks:
+      - app-network
+    restart: unless-stopped
 
 networks:
   payment-network:
@@ -65,6 +156,8 @@ networks:
   order-network:
     external: true
     name: ${ORDER_NETWORK_NAME}
+  app-network:
+    driver: bridge
 
 volumes:
   mongodb_data:
