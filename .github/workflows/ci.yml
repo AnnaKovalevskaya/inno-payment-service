@@ -2,9 +2,9 @@ name: Payment Service CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, PAY-7 ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, PAY-7 ]
 
 jobs:
   build:
