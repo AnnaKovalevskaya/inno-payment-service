@@ -186,6 +186,10 @@ jobs:
             version=${{ github.sha }}
             build-date=${{ github.event.head_commit.timestamp }}
 
+      - name: Logout from Docker Hub
+        if: always()
+        run: docker logout
+
       - name: Upload Docker image info
         run: |
           echo "Docker image built and pushed successfully!"
