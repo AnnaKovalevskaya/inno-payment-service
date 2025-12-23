@@ -30,14 +30,36 @@ public abstract class AbstractIntegrationTest {
     static void beforeAll() {
         mongoDBContainer.start();
         kafkaContainer.start();
+        
+        waitForContainer(mongoDBContainer, 27017);
+        waitForContainer(kafkaContainer, 9092);
     }
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.mongodb.host", mongoDBContainer::getHost);
-        registry.add("spring.data.mongodb.port", () -> mongoDBContainer.getMappedPort(27017));
-        registry.add("spring.data.mongodb.database", () -> "test_payments");
+        String mongoHost = mongoDBContainer.getHost();
+        Integer mongoPort = mongoDBContainer.getMappedPort(27017);
+        
+        System.out.println("MongoDB host: " + mongoHost);
+        System.out.println("MongoDB port: " + mongoPort);
+        System.out.println("MongoDB connection: " + mongoHost + ":" + mongoPort);
+        
+        String mongoUri = String.format("mongodb://%s:%d/test_payments", mongoHost, mongoPort);
+        registry.add("spring.data.mongodb.uri", () -> mongoUri);
+        
         registry.add("spring.kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
         registry.add("wiremock.server.port", () -> 8081);
+    }
+    
+    private static void waitForContainer(org.testcontainers.containers.GenericContainer<?> container, int port) {
+        try {
+            int mappedPort = container.getMappedPort(port);
+            System.out.println("Waiting for container " + container.getContainerName() + 
+                             " on port " + mappedPort + "...");
+            
+            Thread.sleep(2000);
+        } catch (Exception e) {
+            System.out.println("Error waiting for container: " + e.getMessage());
+        }
     }
 }
