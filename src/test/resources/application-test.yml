@@ -1,0 +1,29 @@
+spring:
+  data:
+    mongodb:
+      database: test_payments
+      auto-index-creation: true
+  kafka:
+    consumer:
+      group-id: test-payment-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      spring.json.trusted.packages: "*"
+
+wiremock:
+  server:
+    port: 8081
+
+logging:
+  level:
+    org.testcontainers: INFO
+    org.mongodb.driver: WARN
+    org.springframework.kafka: WARN
+    com.innowise.demo.paymentservice: DEBUG
